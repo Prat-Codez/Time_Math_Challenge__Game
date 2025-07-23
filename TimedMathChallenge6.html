@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timed Math Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars */
+            background-color: #f3e8ff; /* A light purple background */
+        }
+
+        /* Subtle Diagonal Lines background pattern */
+        .main-bg {
+            background-image: 
+                linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.2) 75%, rgba(255,255,255,0.2) 100%),
+                linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.2) 75%, rgba(255,255,255,0.2) 100%);
+            background-size: 20px 20px; /* Size of the repeating pattern */
+            background-position: 0 0, 10px 10px; /* Offset for creating the pattern */
+            background-color: #f3e8ff; /* Fallback color, matching body background */
+        }
+
+        .card {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 2rem;
+            padding: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: all 0.5s ease-in-out;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+        }
+        
+        .card:hover {
+            transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) scale(1.02);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.3);
+        }
+
+        .screen {
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+            will-change: opacity, transform;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            transform: scale(0.95);
+        }
+
+        .btn {
+            display: inline-block;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid transparent;
+            padding: 0.85rem 1.75rem;
+            font-size: 1rem;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            transform: scale(1);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            color: #fff;
+            background-image: linear-gradient(to right, #818cf8, #c084fc);
+            border: none;
+        }
+        
+        .btn-secondary {
+            color: #6d28d9;
+            background-color: #ede9fe;
+            border-color: transparent;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #ddd6fe;
+        }
+
+        #answer-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.4);
+            border-color: #a78bfa;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+            20%, 40%, 60%, 80% { transform: translateX(6px); }
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        .progress-bar-fg {
+            transition: width 0.4s ease-out;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0.9;
+            border-radius: 50%;
+            animation: fall 3.5s linear forwards;
+        }
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        #mute-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            cursor: pointer;
+            color: #9ca3af;
+            transition: color 0.2s;
+        }
+        #mute-btn:hover {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="main-bg flex items-center justify-center min-h-screen p-4">
+
+    <div id="app" class="card w-full max-w-lg text-center relative">
+        
+        <div id="mute-btn">
+             <svg id="sound-on-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-volume-2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+             <svg id="sound-off-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-volume-x hidden"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+        </div>
+
+        <div id="intro-screen" class="screen">
+            <h1 class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-600 mb-4 leading-tight">
+                Welcome to<br>Math Challenge!
+            </h1>
+            <p class="text-slate-500 mb-10">
+                Made by <span class="font-bold text-purple-600">Prat_Codez</span>
+            </p>
+            <button id="github-btn" class="btn btn-primary w-full max-w-xs mx-auto text-lg mb-4">
+                Check out more projects on GitHub
+            </button>
+            <button id="no-thanks-btn" class="btn btn-secondary w-full max-w-xs mx-auto text-lg">
+                <span class="text-2xl font-bold block leading-none">No Thanks</span>
+                <span class="text-sm block leading-none mt-1">Get to Game</span>
+            </button>
+        </div>
+
+        <div id="home-screen" class="screen hidden">
+            <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-600 mb-4 leading-tight">
+                Timed Math<br>Challenge
+            </h1>
+            <p class="text-slate-500 mb-10">Test your wits against the clock!</p>
+            <button id="start-game-btn" class="btn btn-primary w-full max-w-xs mx-auto text-lg">Start Game</button>
+             <p class="text-slate-400 text-sm mt-12">Made by Prat_Codez</p>
+        </div>
+
+        <div id="difficulty-screen" class="screen hidden">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">Select Difficulty</h1>
+            <p class="text-slate-600 mb-8">Choose your challenge level.</p>
+            <div id="difficulty-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                </div>
+        </div>
+
+        <div id="quiz-screen" class="screen hidden">
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-2 text-sm font-medium text-slate-600">
+                    <p id="problem-counter">Problem: 1 / 10</p>
+                    <p id="timer">Time: 0s</p>
+                </div>
+                <div class="bg-slate-200 rounded-full h-2.5 w-full">
+                    <div id="progress-bar" class="progress-bar-fg h-full rounded-full bg-gradient-to-r from-purple-400 to-indigo-500" style="width: 10%;"></div>
+                </div>
+            </div>
+            <div id="problem-container" class="my-8 min-h-[80px] flex items-center justify-center">
+                <p id="expression" class="text-6xl font-bold text-slate-800 tracking-wider"></p>
+            </div>
+            <div id="feedback" class="h-6 mb-4 text-xl font-semibold"></div>
+            <input type="number" id="answer-input" class="w-full text-center text-3xl p-3 border-2 border-slate-300 rounded-lg mb-4 transition-all">
+            <button id="submit-btn" class="btn btn-primary w-full">Submit</button>
+        </div>
+
+        <div id="results-screen" class="screen hidden">
+            <h2 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-4">Great Job!</h2>
+            <div class="space-y-3 text-lg text-slate-700 bg-slate-100 p-4 rounded-lg">
+                <p>You finished in <span id="total-time" class="font-bold text-indigo-600 text-xl">0</span> seconds.</p>
+                <p>You had <span id="wrong-answers" class="font-bold text-rose-600 text-xl">0</span> incorrect attempts.</p>
+            </div>
+            <button id="play-again-btn" class="btn btn-primary w-full mt-8">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const MIN_OPERAND = 3;
+        const MAX_OPERAND = 12;
+        const TOTAL_PROBLEMS = 10;
+        
+        const DIFFICULTY_SETTINGS = {
+            1: { name: "Easy (+, -)",   operators: ['+', '-'],       multiplier_range: [2, 7] },
+            2: { name: "Medium (+,-,*)",  operators: ['+', '-', '*'],       multiplier_range: [2, 9] },
+            3: { name: "Hard (All)",   operators: ['+', '-', '*', '/'], multiplier_range: [2, 12] },
+            4: { name: "Expert (All)", operators: ['+', '-', '*', '/'], multiplier_range: [3, 15] }
+        };
+
+        // --- DOM ELEMENTS ---
+        const app = document.getElementById('app');
+        const introScreen = document.getElementById('intro-screen'); 
+        const homeScreen = document.getElementById('home-screen');
+        const difficultyScreen = document.getElementById('difficulty-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        
+        const startGameBtn = document.getElementById('start-game-btn');
+        const difficultyButtonsContainer = document.getElementById('difficulty-buttons');
+        
+        const problemCounterEl = document.getElementById('problem-counter');
+        const timerEl = document.getElementById('timer');
+        const progressBar = document.getElementById('progress-bar');
+        const expressionEl = document.getElementById('expression');
+        const feedbackEl = document.getElementById('feedback');
+        const answerInput = document.getElementById('answer-input');
+        const submitBtn = document.getElementById('submit-btn');
+
+        const totalTimeEl = document.getElementById('total-time');
+        const wrongAnswersEl = document.getElementById('wrong-answers');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        
+        const muteBtn = document.getElementById('mute-btn');
+        const soundOnIcon = document.getElementById('sound-on-icon');
+        const soundOffIcon = document.getElementById('sound-off-icon');
+
+        // Intro Screen Buttons
+        const githubBtn = document.getElementById('github-btn');
+        const noThanksBtn = document.getElementById('no-thanks-btn');
+
+        // --- GAME STATE ---
+        let currentProblemIndex = 0;
+        let wrongAttempts = 0;
+        let selectedDifficulty = 1;
+        let currentProblem = {};
+        let startTime;
+        let timerInterval;
+        let isMuted = false;
+        let audioInitialized = false; // Flag to track if Tone.js has been initialized
+
+        // --- AUDIO SETUP (Tone.js) ---
+        let synth, musicLoop;
+
+        function setupAudio() {
+            if (audioInitialized) return; // Only run this once
+            // Create a synth for sound effects
+            synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "triangle" },
+                envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 },
+            }).toDestination();
+            
+            // Create a synth for the music
+            const musicSynth = new Tone.MonoSynth({
+                oscillator: { type: "fatsawtooth" },
+                envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1 },
+                filter: { Q: 2, type: "lowpass", rolloff: -24 },
+                filterEnvelope: { attack: 0.01, decay: 0.7, sustain: 0.1, release: 2, baseFrequency: 300, octaves: 4 }
+            }).toDestination();
+
+            // Define the melody
+            const melody = [
+                ['C3', '8n'], ['E3', '8n'], ['G3', '8n'], ['B3', '8n'],
+                ['C4', '8n'], ['B3', '8n'], ['G3', '8n'], ['E3', '8n']
+            ];
+            
+            // Create a loop
+            let step = 0;
+            musicLoop = new Tone.Loop(time => {
+                let [note, duration] = melody[step % melody.length];
+                musicSynth.triggerAttackRelease(note, duration, time);
+                step++;
+            }, "4n").start(0); // Loop is created and scheduled to start at time 0
+
+            audioInitialized = true; // Set flag after successful setup
+        }
+        
+        // --- SOUND EFFECTS FUNCTIONS ---
+        function playIncorrectSound() {
+            if (isMuted || !audioInitialized) return;
+            synth.triggerAttackRelease(["C2", "D#2"], "8n");
+        }
+
+        function playEndGameSound() {
+            if (isMuted || !audioInitialized) return;
+            synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "0.5s");
+        }
+        
+        function toggleMusic(play) {
+            // Only try to control music if audio context has been initialized
+            if (!audioInitialized) return; 
+
+            if (play && !isMuted) {
+                // Only start transport if it's not already started.
+                if (Tone.Transport.state !== 'started') {
+                    Tone.Transport.start();
+                }
+            } else {
+                if (Tone.Transport.state === 'started') {
+                    Tone.Transport.stop();
+                }
+            }
+        }
+
+        // --- UI FUNCTIONS ---
+        function switchScreen(screenToShow) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                if (screen.id !== screenToShow.id) {
+                    screen.classList.add('hidden');
+                }
+            });
+            screenToShow.classList.remove('hidden');
+            
+            // Control music based on screen
+            // Music plays on intro-screen AND home-screen
+            if (screenToShow.id === 'intro-screen' || screenToShow.id === 'home-screen') { 
+                toggleMusic(true); 
+            } else { // Stop music on all other screens (difficulty, quiz, results)
+                toggleMusic(false); 
+            }
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        function generateProblem(difficulty) {
+            const settings = DIFFICULTY_SETTINGS[difficulty];
+            const allowedOperators = settings.operators;
+            const operator = allowedOperators[getRandomInt(0, allowedOperators.length - 1)];
+            
+            if (operator === '/') {
+                const [min_mult, max_mult] = settings.multiplier_range;
+                const divisor = getRandomInt(MIN_OPERAND, MAX_OPERAND);
+                const multiplier = getRandomInt(min_mult, max_mult);
+                const dividend = divisor * multiplier;
+                const expr = `${dividend} ÷ ${divisor}`;
+                const answer = Math.floor(eval(`${dividend} / ${divisor}`)); 
+                return { expression: expr, answer: answer };
+            } else {
+                let left = getRandomInt(MIN_OPERAND, MAX_OPERAND);
+                let right = getRandomInt(MIN_OPERAND, MAX_OPERAND);
+                
+                if (operator === '-' && left < right) {
+                    [left, right] = [right, left];
+                }
+
+                const operatorSymbol = operator === '*' ? '×' : operator;
+                const expr = `${left} ${operatorSymbol} ${right}`;
+                const answer = eval(`${left} ${operator} ${right}`);
+                return { expression: expr, answer: answer };
+            }
+        }
+
+        function displayNextProblem() {
+            currentProblemIndex++;
+            if (currentProblemIndex > TOTAL_PROBLEMS) {
+                endGame();
+                return;
+            }
+            problemCounterEl.textContent = `Problem: ${currentProblemIndex} / ${TOTAL_PROBLEMS}`;
+            progressBar.style.width = `${(currentProblemIndex / TOTAL_PROBLEMS) * 100}%`;
+            
+            currentProblem = generateProblem(selectedDifficulty);
+            expressionEl.textContent = `${currentProblem.expression} = ?`;
+            answerInput.value = '';
+            answerInput.focus();
+            feedbackEl.textContent = '';
+        }
+        
+        function checkAnswer() {
+            const userAnswer = answerInput.value;
+            if (userAnswer === '') {
+                showFeedback('Enter a number!', 'text-amber-600');
+                return;
+            }
+
+            if (parseInt(userAnswer, 10) === currentProblem.answer) {
+                showFeedback('Correct!', 'text-green-500');
+                answerInput.blur();
+                setTimeout(displayNextProblem, 800);
+            } else {
+                wrongAttempts++;
+                playIncorrectSound();
+                showFeedback('Incorrect!', 'text-rose-600');
+                answerInput.classList.add('shake');
+                setTimeout(() => answerInput.classList.remove('shake'), 500);
+                answerInput.value = '';
+                answerInput.focus();
+            }
+        }
+        
+        function showFeedback(message, colorClass) {
+            feedbackEl.textContent = message;
+            feedbackEl.className = `h-6 mb-4 text-xl font-semibold ${colorClass}`;
+        }
+
+        function startQuiz(difficulty) {
+            selectedDifficulty = difficulty;
+            switchScreen(quizScreen); // This will automatically call toggleMusic(false) as quizScreen is not intro or home
+            
+            currentProblemIndex = 0;
+            wrongAttempts = 0;
+            
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            displayNextProblem();
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const seconds = Math.round((now - startTime) / 1000);
+            timerEl.textContent = `Time: ${seconds}s`;
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            const endTime = new Date();
+            const totalTime = Math.round((endTime - startTime) / 1000);
+
+            totalTimeEl.textContent = totalTime;
+            wrongAnswersEl.textContent = wrongAttempts;
+
+            playEndGameSound();
+            switchScreen(resultsScreen); // This will automatically call toggleMusic(false)
+            launchConfetti();
+        }
+
+        function resetGame() {
+            // After 'Play Again', we go to the main home screen. Music should play here.
+            switchScreen(homeScreen); 
+            timerEl.textContent = 'Time: 0s';
+            progressBar.style.width = '0%';
+        }
+        
+        function launchConfetti() {
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.animationDelay = `${Math.random() * 3}s`;
+                const colors = ['#facc15', '#4ade80', '#60a5fa', '#f472b6', '#fb923c', '#818cf8'];
+                confetti.style.backgroundColor = colors[getRandomInt(0, colors.length - 1)];
+                app.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3500);
+            }
+        }
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            soundOnIcon.classList.toggle('hidden', isMuted);
+            soundOffIcon.classList.toggle('hidden', !isMuted);
+            
+            // Re-evaluate music state based on current screen after toggling mute
+            // Music plays on intro and home screens
+            if (introScreen.classList.contains('hidden') && homeScreen.classList.contains('hidden')) { 
+                // If neither intro nor home screen is active, music should be off regardless of mute
+                toggleMusic(false); 
+            } else { 
+                // If intro or home screen is active, music state depends on mute
+                toggleMusic(!isMuted); 
+            }
+        }
+
+        function init() {
+            // Populate difficulty buttons
+            difficultyButtonsContainer.innerHTML = '';
+            for (const level in DIFFICULTY_SETTINGS) {
+                const settings = DIFFICULTY_SETTINGS[level];
+                const button = document.createElement('button');
+                button.className = 'btn btn-secondary';
+                button.textContent = settings.name;
+                button.onclick = () => startQuiz(level);
+                difficultyButtonsContainer.appendChild(button);
+            }
+            
+            // --- Event Listeners ---
+            // Function to initialize audio context on first user interaction
+            const initializeAudio = async () => {
+                if (!audioInitialized) {
+                    await Tone.start(); // This starts the browser's audio context
+                    setupAudio();       // This sets up Tone.js synths and the music loop
+                }
+                // We don't call toggleMusic here.
+                // The music state (play/pause) is determined by `switchScreen` based on the destination.
+            };
+
+            // Event listeners for the Intro Screen buttons
+            githubBtn.addEventListener('click', async () => {
+                await initializeAudio();
+                toggleMusic(false); // Explicitly stop music when opening an external link
+                window.open('https://github.com/Prat-Codez', '_blank'); // Opens in a new tab
+            });
+
+            noThanksBtn.addEventListener('click', async () => {
+                await initializeAudio();
+                switchScreen(homeScreen); // Move to the game's main home screen. switchScreen will then start music.
+            });
+
+            // Existing game flow listeners
+            startGameBtn.addEventListener('click', () => {
+                // Audio context is already initialized by intro screen buttons
+                switchScreen(difficultyScreen); // switchScreen will stop music here
+            });
+
+            submitBtn.addEventListener('click', checkAnswer);
+            answerInput.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    checkAnswer();
+                }
+            });
+            playAgainBtn.addEventListener('click', resetGame);
+            muteBtn.addEventListener('click', toggleMute);
+
+            // Start the game on the Intro Screen
+            // On initial page load, music will NOT play automatically due to browser policies.
+            // It will start playing on the intro screen (or home screen) only after a user interaction.
+            switchScreen(introScreen);
+        }
+
+        // --- START THE APP ---
+        init();
+    </script>
+</body>
+</html>
